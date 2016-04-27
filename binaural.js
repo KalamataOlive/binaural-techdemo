@@ -20,10 +20,71 @@ function Binaural() {
         //constants
         BEAT_FOREVER: -2
         
+        //internal variables
+        ,_currentBeat: null //currently playing beat
+        ,_beatSeconds: 0 //number of seconds the current beat has played
+        ,_totalSeconds: 0 //total number of seconds in the chain
+        ,_playing: false //is the chain currently playing?
+        
         //singly linked list stuff
         ,_chain: {
             length: 0
             ,head: null
+        }
+        /*
+         *int _positionInChain(Node)
+         *Returns the position (1-based) the Node has in the chain, or -1 if it's not found
+         */
+        ,_positionInChain: function(node)
+        {
+            var currentNode = this._chain.head
+                ,length = this._chain.length
+                ,count = 1;
+            
+            //if the chain has no nodes, return error
+            if (length === 0)
+            {
+                return -1;
+            }
+            
+            while (currentNode != node)
+            {
+                //set the currentNode to the next node, and return error if there isn't a next node
+                currentNode = currentNode.next;
+                if (typeof currentNode === "undefined" || currentNode === null)
+                {
+                    return -1;
+                }
+                count++;
+            }
+            
+            return count;
+        }
+        /*
+         *Node _nodeAtPosition(int)
+         *Returns the node in the chain at position, or null if no node exists at that position
+         */
+        ,_nodeAtPosition: function(position)
+        {
+            var currentNode = this._chain.head
+                ,length = this._chain.length
+                ,count = 1;
+            
+            //error checking if position is out of bounds
+            if (length === 0 || position < 1 || position > length)
+            {
+                //position out of bounds, return error (null)
+                return null;
+            }
+            
+            //iterate through count nodes to find the right one, then return it
+            while (count < position)
+            {
+                currentNode = currentNode.next;
+                count++;
+            }
+            
+            return currentNode;
         }
         /*
          *Beat _createNode(Beat)
@@ -61,10 +122,16 @@ function Binaural() {
         /*
          *Beat chainBeat(Beat)
          *Chains a beat at the end of the chain
-         *Returns linked beat (different object from Beat argument)
+         *Returns linked beat (different object from Beat argument) or null on error
          */
         ,chainBeat: function(beat)
         {
+            //make sure we aren't playing
+            if (this._playing)
+            {
+                return null;
+            }
+            
             beat = this._createNode(beat);
             var currentNode = this._chain.head;
             
@@ -91,5 +158,48 @@ function Binaural() {
             
             return beat;
         }
+        /*
+         *void clearChain()
+         *Clears all chained beats
+         */
+        ,clearChain: function()
+        {
+            //if the chain is playing, stop it
+            if (this._playing)
+            {
+                this.stopChain();
+            }
+            
+            //reset variables
+            this._currentBeat = null;
+            this._beatSeconds = 0;
+            this._totalSeconds = 0;
+            this._playing = false;
+            
+            //if chain is empty, return
+            if (this._chain.length === 0)
+            {
+                return;
+            }
+            
+            //unlink all Beat nodes
+            var currentNode = this._chain.head
+                ,length = this._chain.length
+                ,count = 0
+                ,nextNode = null;
+            
+            this._chain.head = null; //unlink nodes from chain
+            
+            while (count < length)
+            {
+                nextNode = currentNode.next;
+                currentNode.next = null;
+                currentNode = nextNode;
+                count++;
+            }
+        }
+        /*
+         *
+         */
     };
 }
