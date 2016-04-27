@@ -22,6 +22,8 @@ function Binaural() {
         
         //internal variables
         ,_currentBeat: null //currently playing beat
+        ,_beatsTotal: 0 //total number of beats in the chain
+        ,_beatsPlayed: 0 //number of beats played in the current chain
         ,_beatSeconds: 0 //number of seconds the current beat has played
         ,_totalSeconds: 0 //total number of seconds in the chain
         ,_playing: false //is the chain currently playing?
@@ -291,13 +293,13 @@ function Binaural() {
             }
             
             //make sure the position is valid
-            if (position < 0 || position > this._chain.length)
+            if (position <= 0 || position > this._chain.length)
             {
                 return null;
             }
             
             //if adding to the first element
-            if (position == 0)
+            if (position == 1)
             {
                 beat = this._createNode(beat);
                 beat.next = this._chain.head;
@@ -308,6 +310,54 @@ function Binaural() {
             
             //if adding to an element other than the first
             return this.chainAfter(beat,position-1);
+        }
+        /*
+         *bool chainPlaying()
+         *Returns true if the chain is currently playing
+         */
+        ,chainPlaying: function()
+        {
+            return this._playing;
+        }
+        /*
+         *void playChain(int)
+         *Plays the chain starting with the first beat in the chain or the beat at position.
+         */
+        ,playChain: function(position)
+        {
+            
+        }
+        /*
+         *void pauseChain()
+         *Pauses the beat chain audio and time counters
+         */
+        ,pauseChain: function()
+        {
+            
+        }
+        /*
+         *void stopChain()
+         *Stops the beat chain audio and clears the chain and all counters.
+         */
+        ,stopChain: function()
+        {
+            
+        }
+        /*
+         *int beatsPlayed()
+         *Returns the number of beats played in the current chain.
+         */
+        ,beatsPlayed: function()
+        {
+            return this._beatsPlayed;
+        }
+        /*
+         *int beatsLeft()
+         *Returns the total number of beats left in the chain
+         */
+        ,beatsLeft: function()
+        {
+            return this._beatsTotal - this._beatsPlayed;
         }
     };
 }
