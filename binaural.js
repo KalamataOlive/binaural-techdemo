@@ -25,6 +25,10 @@ function Binaural() {
             length: 0
             ,head: null
         }
+        /*
+         *Beat _createNode(Beat)
+         *Returns a cloned copy of Beat nodeData and adds linked list-specific properties to it
+         */
         ,_createNode: function(nodeData)
         {
             //if nodeData is not an object, make it a blank object
@@ -35,7 +39,7 @@ function Binaural() {
             //clone it so devs can reuse their beat structures
             nodeData = this._cloneBeat(nodeData);
             
-            //add linked list data
+            //add linked list properties
             nodeData.next = null;
             
             return nodeData;
@@ -55,8 +59,9 @@ function Binaural() {
         }
         
         /*
-         *void chainBeat(Beat)
+         *Beat chainBeat(Beat)
          *Chains a beat at the end of the chain
+         *Returns linked beat (different object from Beat argument)
          */
         ,chainBeat: function(beat)
         {
@@ -66,22 +71,25 @@ function Binaural() {
             //list is empty
             if (!currentNode)
             {
-                this._chain.head = node;
+                //set first node in the list to beat
+                this._chain.head = beat;
+                this._chain.length++;
                 
-                //return id, THEN increment length of chain
-                return this._chain.length++;
+                return beat;
             }
             
             //list is not empty
+            //get last node in list
             while (currentNode.next)
             {
                 currentNode = currentNode.next;
             }
             
-            currentNode.next = node;
+            //add node after the current last node in the list
+            currentNode.next = beat;
+            this._chain.length++;
             
-            //return id, THEN increment length of chain
-            return this._chain.length++;
+            return beat;
         }
     };
 }
