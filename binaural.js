@@ -197,9 +197,46 @@ function Binaural() {
                 currentNode = nextNode;
                 count++;
             }
+            
+            //clear chain length property
+            this._chain.length = 0;
         }
         /*
-         *
+         *void unchainBeat(Beat)
+         *Unlinks Beat from the chain
          */
+        ,unchainBeat: function(beat)
+        {
+            //get beat's position in the chain
+            var position = this._positionInChain(beat);
+            
+            //if error getting beat, return
+            if (position == -1)
+            {
+                return;
+            }
+            
+            //if beat is first, unlink it from the chain and make it's next the new head
+            if (position == 1)
+            {
+                //is there a next node?
+                if (typeof beat.next === "undefined" || beat.next == null)
+                {
+                    this._chain.head = null;
+                } else {
+                    this._chain.head = beat.next;
+                    beat.next = null;
+                }
+                
+                //decrement chain length property
+                this._chain.length--;
+                
+                return;
+            }
+            
+            var before = this._nodeAtPosition(position - 1);
+            before.next = beat.next;
+            beat.next = null;
+        }
     };
 }
