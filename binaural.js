@@ -207,6 +207,12 @@ function Binaural() {
          */
         ,unchainBeat: function(beat)
         {
+            //make sure we aren't playing
+            if (this._playing)
+            {
+                return;
+            }
+            
             //get beat's position in the chain
             var position = this._positionInChain(beat);
             
@@ -237,6 +243,71 @@ function Binaural() {
             var before = this._nodeAtPosition(position - 1);
             before.next = beat.next;
             beat.next = null;
+        }
+        /*
+         *Beat chainAfter(Beat,int)
+         *Add Beat to the chain right after the node at position.
+         *Returns linked Beat or null on error
+         */
+        ,chainAfter: function(beat,position)
+        {
+            //make sure we aren't playing
+            if (this._playing)
+            {
+                return null;
+            }
+            
+            //make sure position is valid
+            var beforeNode = this._nodeAtPosition(position);
+            if (beforeNode == null)
+            {
+                return null;
+            }
+            
+            beat = this._createNode(beat);
+            
+            //if there should be a node after, set it as the next for the new node
+            if (typeof beforeNode.next !== "undefined" || beforeNode.next != null)
+            {
+                beat.next = beforeNode.next;
+            }
+            
+            beforeNode.next = beat;
+            this._chain.length++;
+            
+            return beat;
+        }
+        /*
+         *Beat chainBefore(Beat,int)
+         *Add Beat to the chain right before the node at position
+         *Returns linked beat or null on error
+         */
+        ,chainBefore: function(beat,position)
+        {
+            //make sure we aren't playing
+            if (this._playing)
+            {
+                return null;
+            }
+            
+            //make sure the position is valid
+            if (position < 0 || position > this._chain.length)
+            {
+                return null;
+            }
+            
+            //if adding to the first element
+            if (position == 0)
+            {
+                beat = this._createNode(beat);
+                beat.next = this._chain.head;
+                this._chain.head = beat;
+                this._chain.length++;
+                return;
+            }
+            
+            //if adding to an element other than the first
+            return this.chainAfter(beat,position-1);
         }
     };
 }
