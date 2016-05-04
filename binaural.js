@@ -403,7 +403,7 @@ function Binaural() {
                 
                 //adjust volume and start current beat
                 this._oscillatorLeftNode.frequency.value = this._currentBeat.carrier;
-                this._oscillatorRightNode.frequency.value = this._currentBeat.carrier + 7;
+                this._oscillatorRightNode.frequency.value = this._currentBeat.carrier + this._currentBeat.frequency;
                 
                 //make sure to only call start() once on the oscillators
                 if (!this._oscillatorsStarted)
