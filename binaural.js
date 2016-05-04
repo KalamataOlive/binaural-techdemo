@@ -12,28 +12,40 @@
  *
  *Author List:
  *Luke Bullard (kalamataolive)
- *
- *Requires Audiolet.js (found on https://github.com/waynehoover/HTML5-Binaural-Beat-Generator)
  */
+
 function Binaural() {
     return {
         //constants
         BEAT_FOREVER: -2
+        ,VOLUME: 0.02
         
         //internal variables
-        ,_currentBeat: null //currently playing beat
-        ,_beatsTotal: 0 //total number of beats in the chain
-        ,_beatsPlayed: 0 //number of beats played in the current chain
+        //html5 audio variables
+        ,"_audioContext": null
+        ,"_oscillatorLeftNode": null
+        ,"_oscillatorRightNode": null
+        ,"_gainLeftNode": null
+        ,"_gainRightNode": null
+        ,"_oscillatorsStarted": false
         
-        ,_beatSeconds: 0 //number of seconds the current beat has played
+        //timer ID for keeping track of beat play times
+        ,"_timer": null
         
-        ,_secondsTotal: 0 //total number of seconds in the chain
-        ,_secondsPlayed: 0 //number of seconds the chain has played
+        ,"_currentBeat": null //currently playing beat
+        ,"_beatsTotal": 0 //total number of beats in the chain
+        ,"_beatsPlayed": 0 //number of beats played in the current chain
         
-        ,_playing: false //is the chain currently playing?
+        ,"_beatSeconds": 0 //number of seconds the current beat has played
+        
+        ,"_secondsTotal": 0 //total number of seconds in the chain
+        ,"_secondsPlayed": 0 //number of seconds the chain has played
+        
+        ,"_playing": false //is the chain currently playing?
+        ,"_paused": false //is the chain currently paused?
         
         //singly linked list stuff
-        ,_chain: {
+        ,"_chain": {
             length: 0
             ,head: null
         }
@@ -41,7 +53,7 @@ function Binaural() {
          *int _positionInChain(Node)
          *Returns the position (1-based) the Node has in the chain, or -1 if it's not found
          */
-        ,_positionInChain: function(node)
+        ,"_positionInChain": function(node)
         {
             var currentNode = this._chain.head
                 ,length = this._chain.length
@@ -70,7 +82,7 @@ function Binaural() {
          *Node _nodeAtPosition(int)
          *Returns the node in the chain at position, or null if no node exists at that position
          */
-        ,_nodeAtPosition: function(position)
+        ,"_nodeAtPosition": function(position)
         {
             var currentNode = this._chain.head
                 ,length = this._chain.length
@@ -96,7 +108,7 @@ function Binaural() {
          *Beat _createNode(Beat)
          *Returns a cloned copy of Beat nodeData and adds linked list-specific properties to it
          */
-        ,_createNode: function(nodeData)
+        ,"_createNode": function(nodeData)
         {
             //if nodeData is not an object, make it a blank object
             if (typeof nodeData !== 'object') {
@@ -111,7 +123,7 @@ function Binaural() {
             
             return nodeData;
         }
-        ,_cloneBeat: function(beat)
+        ,"_cloneBeat": function(beat)
         {
             //copy all known attributes, default them if they aren't set
             return {
@@ -120,6 +132,7 @@ function Binaural() {
                 ,seconds: (typeof beat.seconds !== "number") ? 0 : beat.seconds
                 ,fadeInSeconds: (typeof beat.fadeInSeconds !== "number") ? 0 : beat.fadeInSeconds
                 ,fadeOutSeconds: (typeof beat.fadeOutSeconds !== "number") ? 0 : beat.fadeOutSeconds
+                //low volume level for fading (percent, ie. 0.75 is 75%)
                 ,fadeInLow: (typeof beat.fadeInLow !== "number") ? 0 : beat.fadeInLow
                 ,fadeOutLow: (typeof beat.fadeOutLow !== "number") ? 0 : beat.fadeOutLow
             };
@@ -324,12 +337,158 @@ function Binaural() {
             return this._playing;
         }
         /*
+         *bool chainPaused()
+         *Returns true if audio was paused
+         */
+        ,chainPaused: function()
+        {
+            return this._paused;
+        }
+        /*
          *void playChain(int)
          *Plays the chain starting with the first beat in the chain or the beat at position.
          */
         ,playChain: function(position)
         {
+            //if we are already playing, return
+            if (this._playing)
+            {
+                return;
+            }
             
+            //if we are resuming, set volume appropriately
+            if (this._paused)
+            {
+                this._gainLeftNode.gain.volume = this.VOLUME;
+                this._gainRightNode.gain.volume = this.VOLUME;
+            } else {
+                //playing initially
+                //if the HTML5 audio hasn't been setup, do that
+                if ((typeof this._audioContext) === "undefined" || this._audioContext == null)
+                {
+                    this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this._oscillatorLeftNode = this._audioContext.createOscillator();
+                    this._oscillatorLeftNode.type = "sine";
+                    this._gainLeftNode = this._audioContext.createGain();
+                    this._gainLeftNode.gain.value = this.VOLUME;
+                    var panLeftNode = this._audioContext.createPanner();
+                    panLeftNode.setPosition(Math.sin(-90 * (Math.PI / 180)),0,0);
+                    this._oscillatorLeftNode.connect(this._gainLeftNode);
+                    this._gainLeftNode.connect(panLeftNode);
+                    panLeftNode.connect(this._audioContext.destination);
+                    
+                    this._oscillatorRightNode = this._audioContext.createOscillator();
+                    this._oscillatorRightNode.type = "sine";
+                    this._gainRightNode = this._audioContext.createGain();
+                    this._gainRightNode.gain.value = this.VOLUME;
+                    var panRightNode = this._audioContext.createPanner();
+                    panRightNode.setPosition(Math.sin(90 * (Math.PI / 180)),0,0);
+                    this._oscillatorRightNode.connect(this._gainRightNode);
+                    this._gainRightNode.connect(panRightNode);
+                    panRightNode.connect(this._audioContext.destination);
+                }
+                
+                //ensure a node exists
+                if (this._chain.length <= 0)
+                {
+                    return;
+                }
+                
+                //setup variables
+                this._beatsTotal = this._chain.length;
+                
+                for (var i = 1; i <= this._beatsTotal; i++)
+                {
+                    var currentBeat = this._nodeAtPosition(i);
+                    this._secondsTotal += currentBeat.seconds;
+                }
+                
+                this._currentBeat = this._nodeAtPosition(1);
+                this.unchainBeat(this._currentBeat);
+                
+                //adjust volume and start current beat
+                this._oscillatorLeftNode.frequency.value = this._currentBeat.carrier;
+                this._oscillatorRightNode.frequency.value = this._currentBeat.carrier + 7;
+                
+                //make sure to only call start() once on the oscillators
+                if (!this._oscillatorsStarted)
+                {
+                    this._oscillatorLeftNode.start();
+                    this._oscillatorRightNode.start();
+                    this._oscillatorsStarted = true;
+                }
+                
+                this._gainLeftNode.gain.value = this.VOLUME * this._currentBeat.fadeInLow;
+                this._gainRightNode.gain.value = this.VOLUME * this._currentBeat.fadeInLow;
+                
+                //set timer for every second
+                this._timer = setInterval(function(binauralObj){
+                    //if the chain isn't playing, return
+                    if (!binauralObj.chainPlaying()) {
+                        return;
+                    }
+                    
+                    //increase seconds
+                    binauralObj._beatSeconds++;
+                    binauralObj._totalSeconds++;
+                    
+                    //if the beat is over, move on
+                    if (binauralObj.beatSecondsLeft() <= 0)
+                    {
+                        binauralObj._gainLeftNode.gain.value = 0;
+                        binauralObj._gainRightNode.gain.value = 0;
+                        binauralObj._beatSeconds = 0;
+                        binauralObj._beatsPlayed++;
+                        
+                        //get next beat
+                        binauralObj._currentBeat = binauralObj._nodeAtPosition(1);
+                        
+                        //if the next beat doesn't exist
+                        if ((typeof binauralObj._currentBeat) === "undefined" || binauralObj._currentBeat == null)
+                        {
+                            binauralObj.stopChain();
+                            return;
+                        }
+                        
+                        binauralObj.unchainBeat(binauralObj._currentBeat);
+                        
+                        //adjust volume and start current beat
+                        binauralObj._oscillatorLeftNode.frequency.value = binauralObj._currentBeat.carrier;
+                        binauralObj._oscillatorRightNode.frequency.value = binauralObj._currentBeat.carrier + 7;
+                        
+                        //make sure to only call start() once on the oscillators
+                        if (!binauralObj._oscillatorsStarted)
+                        {
+                            binauralObj._oscillatorLeftNode.start();
+                            binauralObj._oscillatorRightNode.start();
+                            binauralObj._oscillatorsStarted = true;
+                        }
+                        
+                        binauralObj._gainLeftNode.gain.value = binauralObj.VOLUME * binauralObj._currentBeat.fadeInLow;
+                        binauralObj._gainRightNode.gain.value = binauralObj.VOLUME * binauralObj._currentBeat.fadeInLow;
+                    }
+                    
+                    //if the beat needs fading in/out, do so
+                    var currentFadedVolume = binauralObj.VOLUME;
+                    if (binauralObj.beatSecondsPlayed() <= binauralObj._currentBeat.fadeInSeconds)
+                    {
+                        currentFadedVolume = binauralObj.VOLUME * (binauralObj._currentBeat.fadeInLow +
+                            (1.0 - binauralObj._currentBeat.fadeInLow) *
+                            (binauralObj.beatSecondsPlayed() / binauralObj._currentBeat.fadeInSeconds));
+                    } else if (binauralObj.beatSecondsLeft() <= binauralObj._currentBeat.fadeOutSeconds &&
+                        binauralObj.beatSecondsLeft() > 0)
+                    {
+                        currentFadedVolume = binauralObj.VOLUME * (binauralObj._currentBeat.fadeOutLow +
+                            (1.0 - binauralObj._currentBeat.fadeOutLow) *
+                            (binauralObj.beatSecondsLeft() / binauralObj._currentBeat.fadeOutSeconds));
+                    }
+                    binauralObj._gainLeftNode.gain.value = currentFadedVolume;
+                    binauralObj._gainRightNode.gain.value = currentFadedVolume;
+                    
+                }, 1000, this);
+            }
+            this._paused = false;
+            this._playing = true;
         }
         /*
          *void pauseChain()
@@ -337,7 +496,12 @@ function Binaural() {
          */
         ,pauseChain: function()
         {
+            //set playing flag to false and mute the audio (by setting volume to 0)
+            this._playing = false;
+            this._gainLeftNode.gain.value = 0;
+            this._gainRightNode.gain.value = 0;
             
+            this._paused = true;
         }
         /*
          *void stopChain()
@@ -345,7 +509,31 @@ function Binaural() {
          */
         ,stopChain: function()
         {
+            //if nothing to stop, return
+            if (this._paused == false && this._playing == false)
+            {
+                return;
+            }
             
+            //stop the timer
+            clearInterval(this._timer);
+            
+            //stop the audio by setting volume to 0
+            this._gainLeftNode.gain.value = 0;
+            this._gainRightNode.gain.value = 0;
+            
+            //reset the variables
+            this._paused = false;
+            this._playing = false;
+            this._beatSeconds = 0;
+            this._beatsPlayed = 0;
+            this._beatsTotal = 0;
+            this._currentBeat = null;
+            this._secondsPlayed = 0;
+            this._secondsTotal = 0;
+            
+            //clear the beat chain
+            this.clearChain();
         }
         /*
          *int beatsPlayed()

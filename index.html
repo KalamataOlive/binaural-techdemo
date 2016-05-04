@@ -2,11 +2,24 @@
 <html lang="en">
     <head>
         <title>Beatly Tech Demo</title>
-        <script type="text/javascript" src="Audiolet.min.js"></script>
         <script type="text/javascript" src="binaural.js"></script>
         <script type="text/javascript" src="jquery.min.js"></script>
         <script type="text/javascript">
             //page js
+            $(document).ready(function(){
+                var myBinaural = Binaural();
+                $("#update").click(function(){
+                    myBinaural.chainBeat({
+                        carrier: parseInt($("#carrier").val())
+                        ,seconds: 30
+                        ,fadeInLow: 0.05
+                        ,fadeInSeconds: 15
+                        ,fadeOutLow: 0
+                        ,fadeOutSeconds: 0
+                    });
+                    myBinaural.playChain();
+                });
+            });
         </script>
         <style type="text/css">
             html, body {
