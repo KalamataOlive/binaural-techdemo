@@ -18,7 +18,7 @@ function Binaural() {
     return {
         //constants
         BEAT_FOREVER: -2
-        ,VOLUME: 0.02
+        ,VOLUME: 0.01//maximum volume
         
         //internal variables
         //html5 audio variables
@@ -135,6 +135,7 @@ function Binaural() {
                 //low volume level for fading (percent, ie. 0.75 is 75%)
                 ,fadeInLow: (typeof beat.fadeInLow !== "number") ? 0 : beat.fadeInLow
                 ,fadeOutLow: (typeof beat.fadeOutLow !== "number") ? 0 : beat.fadeOutLow
+                ,volume: (typeof beat.volume !== "number") ? 1.0 : beat.volume
             };
         }
         
@@ -226,12 +227,6 @@ function Binaural() {
          */
         ,unchainBeat: function(beat)
         {
-            //make sure we aren't playing
-            if (this._playing)
-            {
-                return;
-            }
-            
             //get beat's position in the chain
             var position = this._positionInChain(beat);
             
@@ -418,8 +413,8 @@ function Binaural() {
                     this._oscillatorsStarted = true;
                 }
                 
-                this._gainLeftNode.gain.value = this.VOLUME * this._currentBeat.fadeInLow;
-                this._gainRightNode.gain.value = this.VOLUME * this._currentBeat.fadeInLow;
+                this._gainLeftNode.gain.value = this.VOLUME * this._currentBeat.volume * this._currentBeat.fadeInLow;
+                this._gainRightNode.gain.value = this.VOLUME * this._currentBeat.volume * this._currentBeat.fadeInLow;
                 
                 //set timer for every second
                 this._timer = setInterval(function(binauralObj){
@@ -464,23 +459,24 @@ function Binaural() {
                             binauralObj._oscillatorsStarted = true;
                         }
                         
-                        binauralObj._gainLeftNode.gain.value = binauralObj.VOLUME * binauralObj._currentBeat.fadeInLow;
-                        binauralObj._gainRightNode.gain.value = binauralObj.VOLUME * binauralObj._currentBeat.fadeInLow;
+                        binauralObj._gainLeftNode.gain.value = binauralObj.VOLUME * binauralObj._currentBeat.volume * binauralObj._currentBeat.fadeInLow;
+                        binauralObj._gainRightNode.gain.value = binauralObj.VOLUME * binauralObj._currentBeat.volume * binauralObj._currentBeat.fadeInLow;
                     }
                     
                     //if the beat needs fading in/out, do so
-                    var currentFadedVolume = binauralObj.VOLUME;
+                    var currentFadedVolume = binauralObj.VOLUME * binauralObj._currentBeat.volume;
                     if (binauralObj.beatSecondsPlayed() <= binauralObj._currentBeat.fadeInSeconds)
                     {
-                        currentFadedVolume = binauralObj.VOLUME * (binauralObj._currentBeat.fadeInLow +
+                        currentFadedVolume = binauralObj.VOLUME * binauralObj._currentBeat.volume *
+                            (binauralObj._currentBeat.fadeInLow +
                             (1.0 - binauralObj._currentBeat.fadeInLow) *
                             (binauralObj.beatSecondsPlayed() / binauralObj._currentBeat.fadeInSeconds));
                     } else if (binauralObj.beatSecondsLeft() <= binauralObj._currentBeat.fadeOutSeconds &&
                         binauralObj.beatSecondsLeft() > 0)
                     {
-                        currentFadedVolume = binauralObj.VOLUME * (binauralObj._currentBeat.fadeOutLow +
+                        currentFadedVolume = binauralObj.VOLUME * binauralObj._currentBeat.volume *
                             (1.0 - binauralObj._currentBeat.fadeOutLow) *
-                            (binauralObj.beatSecondsLeft() / binauralObj._currentBeat.fadeOutSeconds));
+                            (binauralObj.beatSecondsLeft() / binauralObj._currentBeat.fadeOutSeconds);
                     }
                     binauralObj._gainLeftNode.gain.value = currentFadedVolume;
                     binauralObj._gainRightNode.gain.value = currentFadedVolume;
